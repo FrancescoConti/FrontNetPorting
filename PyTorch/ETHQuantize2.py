@@ -3,7 +3,7 @@ from __future__ import print_function
 import numpy as np
 
 from DataProcessor import DataProcessor
-from ModelTrainerETH import ModelTrainer
+from ModelTrainerTS import ModelTrainer
 from Dataset import Dataset
 from torch.utils import data
 from ModelManager import ModelManager
@@ -83,44 +83,9 @@ def LoadData(args):
               'shuffle': True,
               'num_workers': num_workers}
     train_loader = data.DataLoader(training_set, **params)
-    validation_loader = data.DataLoader(validation_set, **params)
+    validation_loader = data.DataLoader(validation_set, batch_size=args.batch_size, num_workers=num_workers, shuffle=False)
 
     return train_loader, validation_loader
-
-
-def ExportONXX(model, model_inner, val_loader, validate, h, w):
-
-    nemo.utils.export_onnx("HannaNet/model_int.onnx", model, model_inner, (1, h, w), perm=None)
-
-    b_in, b_out, acc = nemo.utils.get_intermediate_activations(model_inner, validate, val_loader)
-    if acc != None:
-        logging.info("After integerize: %.2f%%" % (100 * acc[0]))
-
-    try:
-        os.makedirs('HannaNet/golden')
-    except Exception:
-        pass
-
-    from collections import OrderedDict
-    dory_dict = OrderedDict([])
-    bidx = 0
-
-    for n, m in model_inner.named_modules():
-        try:
-
-            actbuf = b_in[n][0][bidx].permute((1, 2, 0))
-        except RuntimeError:
-            actbuf = b_in[n][0][bidx]
-        np.savetxt("HannaNet/golden/golden_input_%s.txt" % n, actbuf.cpu().numpy().flatten(),
-                   header="input (shape %s)" % (list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
-    for n, m in model_inner.named_modules():
-        try:
-            actbuf = b_out[n][bidx].permute((1, 2, 0))
-        except RuntimeError:
-            actbuf = b_out[n][bidx]
-        np.savetxt("HannaNet/golden/golden_%s.txt" % n, actbuf.cpu().numpy().flatten(),
-                   header="%s (shape %s)" % (n, list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
-
 
 def main():
     # Training settings
@@ -167,21 +132,15 @@ def main():
 
     if args.trainq:
         epoch = ModelManager.Read(args.load_model, model)
-        trainer = ModelTrainer(model, args, regime)
+        trainer = ModelTrainer(model, args, regime, teacher=True)
         trainer.TrainQuantized(train_loader, validation_loader, h, w, args.epochs)
 
-    if args.quantize:
-        if torch.cuda.is_available():
-            device = "cuda"
-        else:
-            device = "cpu"
-        model = nemo.transform.quantize_pact(model, dummy_input=torch.ones((1, 1, h, w)).to(device))  # .cuda()
+    if args.quantize and not args.trainq:
+        model = nemo.transform.quantize_pact(model, dummy_input=torch.ones((1, 1, h, w)))
         logging.info("[ETHQ2] Model: %s", model)
         epoch, prec_dict = ModelManager.ReadQ(args.load_model, model)
         trainer = ModelTrainer(model, args, regime)
-        trainer.Quantize(validation_loader, h, w, prec_dict)
-        ExportONXX(model, model, validation_loader, trainer.ValidateSingleEpoch, h, w)
-
+        trainer.Deploy(validation_loader, h, w, prec_dict)
 
     if args.save_model is not None:
         # torch.save(trainer.model.state_dict(), args.save_model)

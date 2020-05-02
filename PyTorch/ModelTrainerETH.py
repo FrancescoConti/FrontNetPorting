@@ -26,7 +26,7 @@ class ModelTrainer:
 
         # Loss and optimizer
         self.criterion = nn.L1Loss()
-        if self.args.quantize or args.trainq:
+        if self.args.quantize:
             self.optimizer = torch.optim.Adam(model.parameters(), lr=float(regime['lr']), weight_decay=float(regime['weight_decay']))
         else:
             self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001)

@@ -6,5 +6,5 @@
 #
 # This script runs a full precision training example
 
-CUDA_VISIBLE_DEVICES= python3 ETHQuantize2.py --regime regime.json --epochs 10 --gray 1 --load-trainset "/Users/usi/PycharmProjects/data/160x96/160x96HimaxMixedTrain_12_03_20AugCrop.pickle" --load-model "Models/checkpoint_current_best.pth" --quantiz --save-model "HannaNetQ.pt"
+CUDA_VISIBLE_DEVICES=3 python3 ETHQuantize2.py --regime regime.json --epochs 100 --gray 1 --load-trainset "/home/nickyz/data/160x96HimaxMixedTrain_12_03_20AugCrop.pickle" --load-model "Models/HannaNetFrancesco_290420_q8_f8.pt" --quantize --save-model "HannaNetQ.pt"
 

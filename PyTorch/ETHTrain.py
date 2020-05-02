@@ -3,8 +3,7 @@ from PreActBlock import PreActBlock
 from FrontNet import FrontNet
 from Dronet import Dronet
 
-from ConvBlock import ConvBlock
-from HannaNet import HannaNet
+from JabbaNet import JabbaNet
 
 
 import numpy as np
@@ -126,7 +125,7 @@ def main():
                 regime[k] = rr[k]
 
     if args.gray is not None:
-        model = HannaNet(ConvBlock, [1, 1, 1], isGray=True)
+        model = JabbaNet(isGray=True)
     else:
         model = Dronet(PreActBlock, [1, 1, 1], False)
 
